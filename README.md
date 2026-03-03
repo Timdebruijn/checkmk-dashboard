@@ -43,11 +43,8 @@ The dashboard uses an *automation user* to query the REST API — an account wit
 ## Step 3 — Install
 
 ```bash
-sudo mkdir /opt/checkmk-client-dashboard
-sudo chown checkmk-client-dashboard:checkmk-client-dashboard /opt/checkmk-client-dashboard
-
-# Copy the project files
-sudo cp -r . /opt/checkmk-client-dashboard/
+sudo git clone https://github.com/Timdebruijn/checkmk-dashboard.git /opt/checkmk-client-dashboard
+sudo chown -R checkmk-client-dashboard:checkmk-client-dashboard /opt/checkmk-client-dashboard
 
 # Install dependencies as the service user
 sudo -u checkmk-client-dashboard python3 -m venv /opt/checkmk-client-dashboard/venv
