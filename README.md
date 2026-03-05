@@ -433,7 +433,39 @@ The `-p 127.0.0.1:8000:8000` binding keeps the port local so it is only reachabl
 
 ### Step D — Auto-start on boot
 
-**Podman** — generate a systemd unit for the container:
+**Podman (4.4+) — Quadlet (recommended)**
+
+Quadlet lets systemd manage the container directly from a declarative `.container` file — no manual `podman run` command needed after this point.
+
+Create the file:
+
+```bash
+sudo vim /etc/containers/systemd/checkmk-dashboard.container
+```
+
+```ini
+[Unit]
+Description=Checkmk Client Dashboard
+After=network.target
+
+[Container]
+Image=checkmk-dashboard
+EnvironmentFile=/opt/checkmk-client-dashboard/.env
+PublishPort=127.0.0.1:8000:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now checkmk-dashboard
+```
+
+**Podman (older than 4.4)**
 
 ```bash
 podman generate systemd --name checkmk-dashboard --files --new
