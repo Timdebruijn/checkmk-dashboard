@@ -36,6 +36,13 @@ ENV/
 env.bak/
 venv.bak/
 
+# Logo (user-supplied, not part of the repo)
+static/*.svg
+static/*.png
+static/*.jpg
+static/*.jpeg
+static/*.webp
+
 # OS
 .DS_Store
 Thumbs.db
