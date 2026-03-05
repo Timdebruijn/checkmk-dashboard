@@ -7,7 +7,7 @@ A lightweight read-only monitoring dashboard that fetches non-OK services via th
 ## Deployment options
 
 - **[Steps 1–6](#step-1--create-a-linux-user)** — native install with systemd + nginx (Linux only)
-- **[Docker](#docker)** — build once, run anywhere; also works on air-gapped servers
+- **[Container (Podman / Docker)](#container-podman--docker)** — build once, run anywhere; also works on air-gapped servers
 
 ---
 
@@ -96,36 +96,28 @@ sudo -u checkmk-client-dashboard /opt/checkmk-client-dashboard/venv/bin/pip inst
 
 ## Step 4 — Configuration
 
+Copy `.env.example` as a starting point — it contains all available options with explanations:
+
 ```bash
+sudo cp /opt/checkmk-client-dashboard/.env.example /opt/checkmk-client-dashboard/.env
 sudo vim /opt/checkmk-client-dashboard/.env
-sudo chown checkmk-client-dashboard:checkmk-client-dashboard /opt/checkmk-client-dashboard/.env
-sudo chmod 600 /opt/checkmk-client-dashboard/.env
 ```
 
-Contents of `.env`:
+Minimum required values:
 
 ```env
-# URL of your Checkmk site (no trailing slash)
 CMK_URL=https://checkmk.yourcompany.com/sitename
-
-# Automation user credentials
 CMK_USER=dashboard
 CMK_SECRET=your-automation-secret-here
+```
 
-# Site name — shown in the navbar and used as a filter so only alerts
-# from this site appear (remote sites in distributed monitoring are excluded)
-CMK_SITE=sitename
+All other options are optional. See the configuration reference below.
 
-# Title shown in the browser tab and navbar
-DASHBOARD_TITLE=Monitoring Dashboard
+After editing, lock down the file:
 
-# Prefix of ticket numbers in acknowledge comments (default: INC)
-TICKET_PATTERN=INC
-
-# Basic auth for the dashboard (optional but strongly recommended)
-# Leave empty to disable auth
-DASHBOARD_USER=admin
-DASHBOARD_PASSWORD=choose-a-strong-password
+```bash
+sudo chown checkmk-client-dashboard:checkmk-client-dashboard /opt/checkmk-client-dashboard/.env
+sudo chmod 600 /opt/checkmk-client-dashboard/.env
 ```
 
 ### All configuration options
@@ -195,10 +187,24 @@ Create a new site config:
 sudo vim /etc/nginx/sites-available/checkmk-client-dashboard
 ```
 
-```nginx
-# Rate limiting zone — max 10 requests per second per IP, burst of 20
-limit_req_zone $binary_remote_addr zone=dashboard:10m rate=10r/s;
+**1. Add the rate limiting zone to `/etc/nginx/nginx.conf`** inside the existing `http {}` block:
 
+```nginx
+http {
+    # ...existing config...
+
+    # Rate limiting zone for the dashboard — 10 req/s per IP, burst of 20
+    limit_req_zone $binary_remote_addr zone=dashboard:10m rate=10r/s;
+}
+```
+
+- **`rate=10r/s`** — max 10 requests per second per IP address
+- **`burst=20`** — allows a short burst up to 20 before nginx returns `429 Too Many Requests`
+- **`nodelay`** — burst requests are served immediately rather than delayed
+
+**2. Create the site config in `/etc/nginx/sites-available/checkmk-client-dashboard`:**
+
+```nginx
 server {
     listen 80;
     server_name dashboard.yourcompany.com;
@@ -214,12 +220,6 @@ server {
     }
 }
 ```
-
-The `limit_req_zone` directive must be placed in the `http {}` block in `/etc/nginx/nginx.conf` (or in a file included from there), **not** inside the `server {}` block. The `location` block uses it via `limit_req`.
-
-- **`rate=10r/s`** — max 10 requests per second per IP address
-- **`burst=20`** — allows a short burst of up to 20 queued requests before nginx returns `429 Too Many Requests`
-- **`nodelay`** — burst requests are served immediately rather than being delayed
 
 Enable the site and reload nginx:
 
@@ -276,7 +276,7 @@ Set `DASHBOARD_LOGO` in `.env` to the filename of your logo. Place the file in t
 Copy the logo into the `static/` directory and set the filename in `.env`:
 
 ```bash
-cp /path/to/yourlogo.svg /opt/checkmk-dashboard/static/yourlogo.svg
+cp /path/to/yourlogo.svg /opt/checkmk-client-dashboard/static/yourlogo.svg
 ```
 
 ```env
