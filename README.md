@@ -196,11 +196,16 @@ sudo vim /etc/nginx/sites-available/checkmk-client-dashboard
 ```
 
 ```nginx
+# Rate limiting zone — max 10 requests per second per IP, burst of 20
+limit_req_zone $binary_remote_addr zone=dashboard:10m rate=10r/s;
+
 server {
     listen 80;
     server_name dashboard.yourcompany.com;
 
     location / {
+        limit_req zone=dashboard burst=20 nodelay;
+
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -209,6 +214,12 @@ server {
     }
 }
 ```
+
+The `limit_req_zone` directive must be placed in the `http {}` block in `/etc/nginx/nginx.conf` (or in a file included from there), **not** inside the `server {}` block. The `location` block uses it via `limit_req`.
+
+- **`rate=10r/s`** — max 10 requests per second per IP address
+- **`burst=20`** — allows a short burst of up to 20 queued requests before nginx returns `429 Too Many Requests`
+- **`nodelay`** — burst requests are served immediately rather than being delayed
 
 Enable the site and reload nginx:
 
