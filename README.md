@@ -285,14 +285,14 @@ Mount the logo file into the container's `static/` directory at runtime:
 ```bash
 podman run -d \
   --name checkmk-dashboard \
-  --env-file /etc/checkmk-dashboard/.env \
+  --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
-  -v /etc/checkmk-dashboard/yourlogo.svg:/app/static/yourlogo.svg:ro \
+  -v /opt/checkmk-client-dashboard/yourlogo.svg:/app/static/yourlogo.svg:ro \
   checkmk-dashboard
 ```
 
-Set the matching filename in `/etc/checkmk-dashboard/.env`:
+Set the matching filename in `/opt/checkmk-client-dashboard/.env`:
 
 ```env
 DASHBOARD_LOGO=yourlogo.svg
@@ -389,10 +389,10 @@ The container reads its configuration from a `.env` file on the **host** (the se
 Create the config file in a permanent location:
 
 ```bash
-sudo mkdir -p /etc/checkmk-dashboard
-sudo cp .env.example /etc/checkmk-dashboard/.env
-sudo vim /etc/checkmk-dashboard/.env      # fill in your values
-sudo chmod 600 /etc/checkmk-dashboard/.env
+sudo mkdir -p /opt/checkmk-client-dashboard
+sudo cp .env.example /opt/checkmk-client-dashboard/.env
+sudo vim /opt/checkmk-client-dashboard/.env      # fill in your values
+sudo chmod 600 /opt/checkmk-client-dashboard/.env
 ```
 
 The `.env.example` file contains all available options with explanations (see [Configuration](#step-4--configuration)).
@@ -411,7 +411,7 @@ podman build -t checkmk-dashboard .
 ```bash
 podman run -d \
   --name checkmk-dashboard \
-  --env-file /etc/checkmk-dashboard/.env \
+  --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
   checkmk-dashboard
@@ -458,15 +458,15 @@ scp .env.example user@target-server:~   # you will fill this in on the server
 podman load < checkmk-dashboard.tar.gz
 
 # Create and fill in the config
-sudo mkdir -p /etc/checkmk-dashboard
-sudo cp .env.example /etc/checkmk-dashboard/.env
-sudo vim /etc/checkmk-dashboard/.env
-sudo chmod 600 /etc/checkmk-dashboard/.env
+sudo mkdir -p /opt/checkmk-client-dashboard
+sudo cp .env.example /opt/checkmk-client-dashboard/.env
+sudo vim /opt/checkmk-client-dashboard/.env
+sudo chmod 600 /opt/checkmk-client-dashboard/.env
 
 # Run the container
 podman run -d \
   --name checkmk-dashboard \
-  --env-file /etc/checkmk-dashboard/.env \
+  --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
   checkmk-dashboard
