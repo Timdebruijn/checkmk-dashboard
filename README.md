@@ -4,6 +4,13 @@ A lightweight read-only monitoring dashboard that fetches non-OK services via th
 
 ---
 
+## Deployment options
+
+- **[Steps 1–6](#step-1--create-a-linux-user)** — native install with systemd + nginx (Linux only)
+- **[Docker](#docker)** — build once, run anywhere; also works on air-gapped servers
+
+---
+
 ## Requirements
 
 - Python 3.10 or higher
@@ -53,10 +60,44 @@ sudo -u checkmk-client-dashboard /opt/checkmk-client-dashboard/venv/bin/pip inst
 
 ---
 
+## Step 3b — Offline installation (no internet access)
+
+If the target server has no internet access, download the packages on a machine that *does* have internet and transfer them manually.
+
+**On a machine with internet access** (same OS and Python version as the target):
+
+```bash
+pip download -r requirements.txt -d ./packages
+```
+
+This creates a `packages/` directory containing all `.whl` and `.tar.gz` files.
+
+**Transfer to the target server**, for example via SCP:
+
+```bash
+scp -r packages/ requirements.txt user@target-server:/opt/checkmk-client-dashboard/
+```
+
+**On the target server**, install from the local directory:
+
+```bash
+sudo -u checkmk-client-dashboard python3 -m venv /opt/checkmk-client-dashboard/venv
+sudo -u checkmk-client-dashboard /opt/checkmk-client-dashboard/venv/bin/pip install \
+    --no-index \
+    --find-links=/opt/checkmk-client-dashboard/packages \
+    -r /opt/checkmk-client-dashboard/requirements.txt
+```
+
+> **Python version**: The machine you download on must run the same Python version and OS architecture as the target server. Wheel files (`.whl`) are platform-specific.
+>
+> You can check the Python version with: `python3 --version`
+
+---
+
 ## Step 4 — Configuration
 
 ```bash
-sudo nano /opt/checkmk-client-dashboard/.env
+sudo vim /opt/checkmk-client-dashboard/.env
 sudo chown checkmk-client-dashboard:checkmk-client-dashboard /opt/checkmk-client-dashboard/.env
 sudo chmod 600 /opt/checkmk-client-dashboard/.env
 ```
@@ -97,15 +138,18 @@ DASHBOARD_PASSWORD=choose-a-strong-password
 | `CMK_SITE` | No | Site name for filtering; empty = show all sites |
 | `DASHBOARD_TITLE` | No | Page title (default: `Monitoring Dashboard`) |
 | `TICKET_PATTERN` | No | Ticket prefix (default: `INC`) |
+| `DASHBOARD_LOGO` | No | Filename of the logo in `static/` (e.g. `logo.svg`); empty = default icon |
 | `DASHBOARD_USER` | No | Username for basic auth; empty = no auth |
 | `DASHBOARD_PASSWORD` | No | Password for basic auth; empty = no auth |
+| `SUPPORT_EMAIL` | No | Support email shown in the footer; empty = hidden |
+| `SUPPORT_PHONE` | No | Support phone number shown in the footer; empty = hidden |
 
 ---
 
 ## Step 5 — Systemd service
 
 ```bash
-sudo nano /etc/systemd/system/checkmk-client-dashboard.service
+sudo vim /etc/systemd/system/checkmk-client-dashboard.service
 ```
 
 ```ini
@@ -118,7 +162,7 @@ Type=simple
 User=checkmk-client-dashboard
 WorkingDirectory=/opt/checkmk-client-dashboard
 EnvironmentFile=/opt/checkmk-client-dashboard/.env
-ExecStart=/opt/checkmk-client-dashboard/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+ExecStart=/opt/checkmk-client-dashboard/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
 
@@ -141,6 +185,47 @@ sudo journalctl -u checkmk-client-dashboard -f
 
 ---
 
+## Step 6 — Nginx reverse proxy
+
+Configure nginx to forward traffic to the uvicorn process. The service binds to `127.0.0.1:8000` so it is not directly reachable from outside.
+
+Create a new site config:
+
+```bash
+sudo vim /etc/nginx/sites-available/checkmk-client-dashboard
+```
+
+```nginx
+server {
+    listen 80;
+    server_name dashboard.yourcompany.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable the site and reload nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/checkmk-client-dashboard /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+> **HTTPS**: Use [Certbot](https://certbot.eff.org/) to add a TLS certificate. Certbot will update the nginx config automatically.
+>
+> ```bash
+> sudo certbot --nginx -d dashboard.yourcompany.com
+> ```
+
+---
+
 ## Security
 
 ### Basic auth
@@ -159,6 +244,61 @@ The application cannot manipulate the Checkmk environment:
 - FastAPI docs and OpenAPI spec are **disabled** (`/docs`, `/redoc` and `/openapi.json` are unavailable)
 
 The automation user in Checkmk has the **Guest** role (read-only), so no write permissions are granted from the Checkmk side either.
+
+---
+
+## Adding a company logo
+
+Set `DASHBOARD_LOGO` in `.env` to the filename of your logo. Place the file in the `static/` directory. The logo is shown in the navbar; the default activity icon is hidden when a logo is set.
+
+### Logo requirements
+
+| | |
+|---|---|
+| **Format** | SVG (preferred) or PNG with transparent background |
+| **Height** | 40 px display size; export PNG at 80 px or higher for retina screens |
+| **Width** | Keep under 200 px to avoid crowding the navbar title |
+| **Background** | Transparent — the navbar background is dark (`#1a1d27`) |
+
+### Native install
+
+Copy the logo into the `static/` directory and set the filename in `.env`:
+
+```bash
+cp /path/to/yourlogo.svg /opt/checkmk-dashboard/static/yourlogo.svg
+```
+
+```env
+DASHBOARD_LOGO=yourlogo.svg
+```
+
+Then restart the service to apply the change:
+
+```bash
+sudo systemctl restart checkmk-client-dashboard
+```
+
+### Container (Podman / Docker)
+
+Mount the logo file into the container's `static/` directory at runtime:
+
+```bash
+podman run -d \
+  --name checkmk-dashboard \
+  --env-file /etc/checkmk-dashboard/.env \
+  --restart unless-stopped \
+  -p 127.0.0.1:8000:8000 \
+  -v /etc/checkmk-dashboard/yourlogo.svg:/app/static/yourlogo.svg:ro \
+  checkmk-dashboard
+```
+
+Set the matching filename in `/etc/checkmk-dashboard/.env`:
+
+```env
+DASHBOARD_LOGO=yourlogo.svg
+```
+
+The `:ro` flag mounts the file read-only. Place the logo anywhere on the host and adjust the source path accordingly.
 
 ---
 
@@ -233,3 +373,116 @@ uvicorn main:app --reload
 ```
 
 Available at `http://localhost:8000`.
+
+---
+
+## Container (Podman / Docker)
+
+The `Dockerfile` builds a self-contained image with all dependencies included. Podman and Docker use identical commands — just swap `podman` for `docker` or vice versa.
+
+> **Podman** is the recommended option. It runs rootless by default and has no daemon.
+
+### Step A — Create the config file on the server
+
+The container reads its configuration from a `.env` file on the **host** (the server running the container). The file is passed in at runtime and is never baked into the image.
+
+Create the config file in a permanent location:
+
+```bash
+sudo mkdir -p /etc/checkmk-dashboard
+sudo cp .env.example /etc/checkmk-dashboard/.env
+sudo vim /etc/checkmk-dashboard/.env      # fill in your values
+sudo chmod 600 /etc/checkmk-dashboard/.env
+```
+
+The `.env.example` file contains all available options with explanations (see [Configuration](#step-4--configuration)).
+
+### Step B — Build the image
+
+On a machine with internet access, from the project directory:
+
+```bash
+podman build -t checkmk-dashboard .
+# docker build -t checkmk-dashboard .
+```
+
+### Step C — Run the container
+
+```bash
+podman run -d \
+  --name checkmk-dashboard \
+  --env-file /etc/checkmk-dashboard/.env \
+  --restart unless-stopped \
+  -p 127.0.0.1:8000:8000 \
+  checkmk-dashboard
+```
+
+The `--env-file` points to the config file created in Step A.
+The `-p 127.0.0.1:8000:8000` binding keeps the port local so it is only reachable via the nginx reverse proxy (see [Step 6](#step-6--nginx-reverse-proxy)).
+
+### Step D — Auto-start on boot
+
+**Podman** — generate a systemd unit for the container:
+
+```bash
+podman generate systemd --name checkmk-dashboard --files --new
+sudo mv container-checkmk-dashboard.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now container-checkmk-dashboard
+```
+
+**Docker** — the `--restart unless-stopped` flag in Step C is sufficient when the Docker daemon itself starts on boot.
+
+### Air-gapped deployment (no internet on target server)
+
+If the target server has no internet access, build and export the image on a machine that *does* have internet.
+
+**On a machine with internet access:**
+
+```bash
+podman build -t checkmk-dashboard .
+podman save checkmk-dashboard | gzip > checkmk-dashboard.tar.gz
+```
+
+**Transfer the archive and the config** to the target server:
+
+```bash
+scp checkmk-dashboard.tar.gz user@target-server:~
+scp .env.example user@target-server:~   # you will fill this in on the server
+```
+
+**On the target server:**
+
+```bash
+# Load the image
+podman load < checkmk-dashboard.tar.gz
+
+# Create and fill in the config
+sudo mkdir -p /etc/checkmk-dashboard
+sudo cp .env.example /etc/checkmk-dashboard/.env
+sudo vim /etc/checkmk-dashboard/.env
+sudo chmod 600 /etc/checkmk-dashboard/.env
+
+# Run the container
+podman run -d \
+  --name checkmk-dashboard \
+  --env-file /etc/checkmk-dashboard/.env \
+  --restart unless-stopped \
+  -p 127.0.0.1:8000:8000 \
+  checkmk-dashboard
+```
+
+> The `.tar.gz` archive contains everything — Python, all packages, and the application code. No internet access is needed on the target server.
+
+### Useful commands
+
+```bash
+# View logs
+podman logs -f checkmk-dashboard
+
+# Stop / remove
+podman stop checkmk-dashboard && podman rm checkmk-dashboard
+
+# Rebuild and restart after a code change
+podman build -t checkmk-dashboard . && podman restart checkmk-dashboard
+```

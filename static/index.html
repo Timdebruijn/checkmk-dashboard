@@ -35,7 +35,11 @@
 <body>
 
 <nav class="navbar navbar-dark mb-4 px-4 py-3">
-  <span class="navbar-brand fw-bold"><i class="bi bi-activity me-2"></i><span id="navTitle">Monitoring Dashboard</span></span>
+  <span class="navbar-brand fw-bold d-flex align-items-center gap-2">
+    <img id="navLogo" src="" alt="Logo" style="height:36px; display:none;">
+    <i id="navIcon" class="bi bi-activity"></i>
+    <span id="navTitle">Monitoring Dashboard</span>
+  </span>
   <span class="text-muted small me-3" id="siteLabel"></span>
   <span class="last-update" id="lastUpdate">Loading...</span>
 </nav>
@@ -114,6 +118,11 @@
 
 </div>
 
+<footer id="contactFooter" class="text-muted small text-center py-3 mt-2" style="display:none; border-top: 1px solid #2e3148;">
+  <span id="footerEmail"></span>
+  <span id="footerPhone"></span>
+</footer>
+
 <script>
 const REFRESH_MS = 30_000; // refresh every 30 seconds
 
@@ -170,6 +179,19 @@ async function loadConfig() {
     document.getElementById('navTitle').textContent  = cfg.title;
     if (cfg.site) {
       document.getElementById('siteLabel').textContent = `Site: ${cfg.site}`;
+    }
+    if (cfg.logo) {
+      const img = document.getElementById('navLogo');
+      img.src = cfg.logo;
+      img.style.display = '';
+      document.getElementById('navIcon').style.display = 'none';
+    }
+    const parts = [];
+    if (cfg.support_email) parts.push(`<i class="bi bi-envelope me-1"></i><a href="mailto:${escapeHtml(cfg.support_email)}" class="text-muted">${escapeHtml(cfg.support_email)}</a>`);
+    if (cfg.support_phone) parts.push(`<i class="bi bi-telephone me-1 ms-3"></i>${escapeHtml(cfg.support_phone)}`);
+    if (parts.length) {
+      document.getElementById('contactFooter').style.display = '';
+      document.getElementById('contactFooter').innerHTML = parts.join('');
     }
   } catch(e) { /* non-fatal */ }
 }

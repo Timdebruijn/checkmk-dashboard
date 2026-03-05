@@ -49,9 +49,13 @@ async def root(_: None = Depends(_require_auth)):
 @app.get("/api/config")
 async def config(_: None = Depends(_require_auth)):
     """Returns non-sensitive config to the frontend."""
+    logo_file = os.getenv("DASHBOARD_LOGO", "")
     return {
-        "title": os.getenv("DASHBOARD_TITLE", "Monitoring Dashboard"),
-        "site":  os.getenv("CMK_SITE", ""),
+        "title":         os.getenv("DASHBOARD_TITLE", "Monitoring Dashboard"),
+        "site":          os.getenv("CMK_SITE", ""),
+        "support_email": os.getenv("SUPPORT_EMAIL", ""),
+        "support_phone": os.getenv("SUPPORT_PHONE", ""),
+        "logo":          f"/static/{logo_file}" if logo_file else "",
     }
 
 
