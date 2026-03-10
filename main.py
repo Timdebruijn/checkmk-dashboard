@@ -1,6 +1,10 @@
+import logging
 import os
 import secrets
 from typing import Optional
+
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
@@ -71,5 +75,6 @@ async def problems(_: None = Depends(_require_auth)):
     try:
         data = await get_problems()
         return data
-    except Exception:
+    except Exception as e:
+        logger.exception("Failed to fetch problems from Checkmk: %s", e)
         raise HTTPException(status_code=500, detail="Could not connect to Checkmk.")
