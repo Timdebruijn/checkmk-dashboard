@@ -298,7 +298,7 @@ podman run -d \
   --name checkmk-dashboard \
   --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
-  -p 127.0.0.1:8000:8000 \
+  -p 127.0.0.1:9000:9000 \
   -v /opt/checkmk-client-dashboard/yourlogo.svg:/app/static/yourlogo.svg:ro \
   checkmk-dashboard
 ```
@@ -424,12 +424,12 @@ podman run -d \
   --name checkmk-dashboard \
   --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
-  -p 127.0.0.1:8000:8000 \
+  -p 127.0.0.1:9000:9000 \
   checkmk-dashboard
 ```
 
 The `--env-file` points to the config file created in Step A.
-The `-p 127.0.0.1:8000:8000` binding keeps the port local so it is only reachable via the nginx reverse proxy (see [Step 6](#step-6--nginx-reverse-proxy)).
+The `-p 127.0.0.1:9000:9000` binding keeps the port local so it is only reachable via the nginx reverse proxy (see [Step 6](#step-6--nginx-reverse-proxy)).
 
 ### Step D — Auto-start on boot
 
@@ -451,7 +451,7 @@ After=network.target
 [Container]
 Image=checkmk-dashboard
 EnvironmentFile=/opt/checkmk-client-dashboard/.env
-PublishPort=127.0.0.1:8000:8000
+PublishPort=127.0.0.1:9000:9000
 Restart=always
 
 [Install]
@@ -511,7 +511,7 @@ podman run -d \
   --name checkmk-dashboard \
   --env-file /opt/checkmk-client-dashboard/.env \
   --restart unless-stopped \
-  -p 127.0.0.1:8000:8000 \
+  -p 127.0.0.1:9000:9000 \
   checkmk-dashboard
 ```
 
