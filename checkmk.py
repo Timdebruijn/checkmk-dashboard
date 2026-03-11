@@ -1,6 +1,9 @@
 import httpx
+import logging
 import os
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -40,6 +43,8 @@ async def get_problems() -> dict:
                 ],
             },
         )
+        if not resp.is_success:
+            logger.error("Checkmk API error %s: %s", resp.status_code, resp.text)
         resp.raise_for_status()
 
     services = resp.json().get("value", [])
