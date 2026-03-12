@@ -1,19 +1,23 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: '[FEATURE] '
+about: Stel een nieuwe functie of verbetering voor voor het Checkmk Dashboard
+title: "[FEATURE] "
 labels: enhancement
 assignees: ''
 ---
 
-## Is jouw feature-aanvraag gerelateerd aan een probleem?
-Een duidelijke en beknopte beschrijving van het probleem. Bijv. "Ik ben altijd gefrustreerd wanneer [...]"
+## Samenvatting
+Een duidelijke en beknopte beschrijving van de gewenste functie of verbetering.
 
-## Beschrijf de gewenste oplossing
-Een duidelijke en beknopte beschrijving van wat je wilt dat er gebeurt.
+## Probleem of behoefte
+Beschrijf het probleem dat deze functie oplost of de behoefte waaraan het voldoet.
+Bijv.: "Als gebruiker wil ik [...] zodat ik [...]."
 
-## Beschrijf alternatieven die je hebt overwogen
-Een duidelijke en beknopte beschrijving van eventuele alternatieve oplossingen of features die je hebt overwogen.
+## Voorgestelde oplossing
+Beschrijf de oplossing of functie die je voor ogen hebt.
 
-## Extra context
-Voeg hier eventuele andere context of screenshots over de feature-aanvraag toe.
+## Alternatieven overwogen
+Zijn er andere oplossingen of functies die je hebt overwogen? Zo ja, beschrijf ze hier.
+
+## Aanvullende context
+Voeg hier eventuele andere context, mockups of voorbeelden toe die nuttig kunnen zijn.

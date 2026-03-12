@@ -1,25 +1,25 @@
 ## Beschrijving
-Een duidelijke en beknopte beschrijving van de wijzigingen in deze pull request.
+Beschrijf kort wat deze pull request doet en waarom deze wijziging nodig is.
 
-Closes #<issue-nummer>
+## Wijzigingen
+Geef een overzicht van de aangebrachte wijzigingen:
+- 
+- 
+- 
+
+## Gerelateerde issues
+Sluit issue(s) af: #
 
 ## Type wijziging
-- [ ] Bugfix (niet-brekende wijziging die een probleem oplost)
-- [ ] Nieuwe feature (niet-brekende wijziging die functionaliteit toevoegt)
-- [ ] Brekende wijziging (fix of feature die bestaande functionaliteit anders laat werken)
+- [ ] Bug fix (niet-brekende wijziging die een probleem oplost)
+- [ ] Nieuwe functie (niet-brekende wijziging die functionaliteit toevoegt)
+- [ ] Brekende wijziging (fix of functie die bestaande functionaliteit wijzigt)
 - [ ] Documentatie-update
 
-## Lijst van wijzigingen
-- 
-- 
-- 
-
 ## Checklist
-- [ ] Mijn code volgt de stijlrichtlijnen van dit project
-- [ ] Ik heb een zelf-review van mijn code uitgevoerd
-- [ ] Ik heb commentaar toegevoegd op moeilijk te begrijpen onderdelen
-- [ ] Ik heb de documentatie bijgewerkt waar nodig
-- [ ] Mijn wijzigingen genereren geen nieuwe waarschuwingen
-- [ ] Ik heb tests toegevoegd die bewijzen dat mijn fix effectief is of dat mijn feature werkt
-- [ ] Nieuwe en bestaande unit tests slagen lokaal met mijn wijzigingen
-- [ ] Eventuele afhankelijke wijzigingen zijn gemerged en gepubliceerd
+- [ ] Mijn code volgt de stijl van dit project
+- [ ] Ik heb mijn wijzigingen lokaal getest
+- [ ] Ik heb de relevante documentatie bijgewerkt (indien van toepassing)
+- [ ] Ik heb tests toegevoegd of bijgewerkt (indien van toepassing)
+- [ ] Alle bestaande tests slagen
+- [ ] Gevoelige gegevens (wachtwoorden, tokens, secrets) zijn **niet** opgenomen in deze PR
