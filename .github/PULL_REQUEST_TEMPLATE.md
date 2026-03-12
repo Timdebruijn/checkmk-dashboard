@@ -1,7 +1,7 @@
 ## Beschrijving
 Een duidelijke en beknopte beschrijving van de wijzigingen in deze pull request.
 
-Sluit issue: #
+Closes #<issue-nummer>
 
 ## Type wijziging
 - [ ] Bugfix (niet-brekende wijziging die een probleem oplost)
