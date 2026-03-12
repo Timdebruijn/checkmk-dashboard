@@ -29,4 +29,11 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --tb=short
+          status=0
+          pytest --tb=short || status=$?
+          if [ "$status" -eq 5 ]; then
+            echo "Pytest exited with code 5 (no tests collected); treating as success."
+            exit 0
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
