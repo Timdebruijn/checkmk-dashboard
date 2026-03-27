@@ -1,4 +1,6 @@
 .env
+.env.example
+LICENSE
 venv/
 __pycache__/
 *.py[codz]

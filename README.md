@@ -431,6 +431,8 @@ podman run -d \
 The `--env-file` points to the config file created in Step A.
 The `-p 127.0.0.1:9000:9000` binding keeps the port local so it is only reachable via the nginx reverse proxy (see [Step 6](#step-6--nginx-reverse-proxy)).
 
+> **Port note:** The container listens on port **9000**, not 8000. When adapting the Step 6 nginx config for container use, change `proxy_pass http://127.0.0.1:8000;` to `proxy_pass http://127.0.0.1:9000;`.
+
 ### Step D — Auto-start on boot
 
 **Podman (4.4+) — Quadlet (recommended)**
