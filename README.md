@@ -13,7 +13,7 @@ A lightweight read-only monitoring dashboard that fetches non-OK services via th
 
 ## Requirements
 
-- Python 3.10 or higher
+- Python 3.12 or higher
 - A Checkmk instance with REST API access
 - An automation user in Checkmk (see below)
 
