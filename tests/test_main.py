@@ -23,7 +23,11 @@ def _setup_env_and_app(monkeypatch):
 
     global main_module, client
     main_module = imported_main
-    client = TestClient(imported_main.app, raise_server_exceptions=False)
+    with TestClient(imported_main.app, raise_server_exceptions=False) as test_client:
+        client = test_client
+        yield
+        client = None
+        main_module = None
 
 
 # ---------------------------------------------------------------------------
