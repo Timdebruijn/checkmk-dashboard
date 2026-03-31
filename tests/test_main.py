@@ -1,14 +1,13 @@
 import os
 
-import pytest
 from fastapi.testclient import TestClient
 
 # Set required env vars before importing main
-os.environ.setdefault("CMK_URL", "http://mock-checkmk.example.com/site")
-os.environ.setdefault("CMK_USER", "automation")
-os.environ.setdefault("CMK_SECRET", "dummy-secret")
-os.environ.setdefault("CMK_SITE", "")
-os.environ.setdefault("TICKET_PATTERN", "INC")
+os.environ["CMK_URL"] = "http://mock-checkmk.example.com/site"
+os.environ["CMK_USER"] = "automation"
+os.environ["CMK_SECRET"] = "dummy-secret"
+os.environ["CMK_SITE"] = ""
+os.environ["TICKET_PATTERN"] = "INC"
 os.environ["DASHBOARD_USER"] = ""
 os.environ["DASHBOARD_PASSWORD"] = ""
 
@@ -41,11 +40,6 @@ def test_config_defaults():
     assert "support_email" in data
     assert "support_phone" in data
     assert "logo" in data
-
-
-def test_config_responds_with_200():
-    response = client.get("/api/config")
-    assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------
