@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Stel een nieuwe functie of verbetering voor voor het Checkmk Dashboard
+about: Doe een voorstel voor een nieuwe functie of verbetering voor het Checkmk Dashboard
 title: "[FEATURE] "
 labels: enhancement
 assignees: ''
