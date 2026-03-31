@@ -1,17 +1,26 @@
+import importlib
 import json
-import os
 
 import httpx
 import pytest
 
-# Set required env vars before importing checkmk
-os.environ["CMK_URL"] = "http://mock-checkmk.example.com/site"
-os.environ["CMK_USER"] = "automation"
-os.environ["CMK_SECRET"] = "dummy-secret"
-os.environ["CMK_SITE"] = ""
-os.environ["TICKET_PATTERN"] = "INC"
+# Will be set up by the autouse fixture before each test
+checkmk = None
 
-import checkmk
+
+@pytest.fixture(autouse=True)
+def _set_checkmk_env(monkeypatch):
+    monkeypatch.setenv("CMK_URL", "http://mock-checkmk.example.com/site")
+    monkeypatch.setenv("CMK_USER", "automation")
+    monkeypatch.setenv("CMK_SECRET", "dummy-secret")
+    monkeypatch.setenv("CMK_SITE", "")
+    monkeypatch.setenv("TICKET_PATTERN", "INC")
+
+    import checkmk as _checkmk
+    importlib.reload(_checkmk)
+
+    global checkmk
+    checkmk = _checkmk
 
 
 # ---------------------------------------------------------------------------

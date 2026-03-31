@@ -1,20 +1,29 @@
-import os
+import importlib
 
+import pytest
 from fastapi.testclient import TestClient
 
-# Set required env vars before importing main
-os.environ["CMK_URL"] = "http://mock-checkmk.example.com/site"
-os.environ["CMK_USER"] = "automation"
-os.environ["CMK_SECRET"] = "dummy-secret"
-os.environ["CMK_SITE"] = ""
-os.environ["TICKET_PATTERN"] = "INC"
-os.environ["DASHBOARD_USER"] = ""
-os.environ["DASHBOARD_PASSWORD"] = ""
+# Will be set up by the autouse fixture before each test
+main_module = None
+client = None
 
-import main as main_module
-from main import app
 
-client = TestClient(app, raise_server_exceptions=False)
+@pytest.fixture(autouse=True)
+def _setup_env_and_app(monkeypatch):
+    monkeypatch.setenv("CMK_URL", "http://mock-checkmk.example.com/site")
+    monkeypatch.setenv("CMK_USER", "automation")
+    monkeypatch.setenv("CMK_SECRET", "dummy-secret")
+    monkeypatch.setenv("CMK_SITE", "")
+    monkeypatch.setenv("TICKET_PATTERN", "INC")
+    monkeypatch.setenv("DASHBOARD_USER", "")
+    monkeypatch.setenv("DASHBOARD_PASSWORD", "")
+
+    import main as imported_main
+    importlib.reload(imported_main)
+
+    global main_module, client
+    main_module = imported_main
+    client = TestClient(imported_main.app, raise_server_exceptions=False)
 
 
 # ---------------------------------------------------------------------------
