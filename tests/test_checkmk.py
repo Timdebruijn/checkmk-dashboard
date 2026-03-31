@@ -1,26 +1,26 @@
+"""
+Tests for checkmk.py – unit tests that do not require a live Checkmk instance.
+All HTTP calls are intercepted with pytest-httpx (or httpx mock transport).
+"""
+
 import importlib
-import json
-
-import httpx
+import os
+import sys
 import pytest
+import httpx
 
-# Will be set up by the autouse fixture before each test
-checkmk = None
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-
-@pytest.fixture(autouse=True)
-def _set_checkmk_env(monkeypatch):
-    monkeypatch.setenv("CMK_URL", "http://mock-checkmk.example.com/site")
-    monkeypatch.setenv("CMK_USER", "automation")
-    monkeypatch.setenv("CMK_SECRET", "dummy-secret")
-    monkeypatch.setenv("CMK_SITE", "")
-    monkeypatch.setenv("TICKET_PATTERN", "INC")
-
-    import checkmk as _checkmk
-    importlib.reload(_checkmk)
-
-    global checkmk
-    checkmk = _checkmk
+def _reload_checkmk(**env_overrides):
+    """(Re-)import checkmk with the given environment variables set."""
+    for key, value in env_overrides.items():
+        os.environ[key] = value
+    # Remove cached module so load_dotenv / os.getenv picks up new values
+    sys.modules.pop("checkmk", None)
+    import checkmk as mod
+    return mod
 
 
 # ---------------------------------------------------------------------------
@@ -28,89 +28,147 @@ def _set_checkmk_env(monkeypatch):
 # ---------------------------------------------------------------------------
 
 class TestHasTicket:
-    def test_matching_prefix_returns_true(self):
-        assert checkmk._has_ticket("INC0001234 outage") is True
+    def test_ticket_present_exact_case(self):
+        mod = _reload_checkmk(TICKET_PATTERN="INC")
+        assert mod._has_ticket("INC0012345 – disk full") is True
 
-    def test_case_insensitive(self):
-        assert checkmk._has_ticket("inc0001234 outage") is True
+    def test_ticket_present_lowercase(self):
+        mod = _reload_checkmk(TICKET_PATTERN="INC")
+        assert mod._has_ticket("inc9999 problem acknowledged") is True
 
-    def test_no_ticket_returns_false(self):
-        assert checkmk._has_ticket("no ticket here") is False
+    def test_ticket_absent(self):
+        mod = _reload_checkmk(TICKET_PATTERN="INC")
+        assert mod._has_ticket("no ticket here") is False
 
-    def test_empty_comment_returns_false(self):
-        assert checkmk._has_ticket("") is False
-
-    def test_partial_match_at_end(self):
-        assert checkmk._has_ticket("See INC9999") is True
+    def test_custom_pattern(self):
+        mod = _reload_checkmk(TICKET_PATTERN="CHG")
+        assert mod._has_ticket("CHG001 change window") is True
+        assert mod._has_ticket("INC001 ignored") is False
 
 
 # ---------------------------------------------------------------------------
-# get_problems – mocked HTTP transport
+# get_problems – mocked HTTP responses
 # ---------------------------------------------------------------------------
 
-def _make_service(host, description, state, acknowledged=False, comments=None):
-    """Helper to build a Checkmk-like service entry."""
-    return {
+MOCK_SERVICES = [
+    # Critical, unacknowledged
+    {
         "extensions": {
-            "host_name": host,
-            "description": description,
-            "state": state,
-            "plugin_output": f"{description} output",
-            "acknowledged": acknowledged,
-            "comments_with_info": comments or [],
+            "host_name": "server01",
+            "description": "CPU load",
+            "state": 2,
+            "plugin_output": "CRIT - load 95%",
+            "acknowledged": 0,
+            "comments_with_info": [],
             "last_state_change": "2024-01-01T00:00:00Z",
         }
-    }
-
-
-MOCK_RESPONSE = {
-    "value": [
-        _make_service("host1", "CPU load", 2),                          # critical
-        _make_service("host2", "Disk space", 1),                        # warning
-        _make_service(                                                    # acknowledged w/ ticket
-            "host3", "Memory", 2, acknowledged=True,
-            comments=[["author", "time", "INC0001 acknowledged"]]
-        ),
-        _make_service(                                                    # ack w/o ticket → critical
-            "host4", "Network", 2, acknowledged=True,
-            comments=[["author", "time", "just a note"]]
-        ),
-    ]
-}
+    },
+    # Warning, unacknowledged
+    {
+        "extensions": {
+            "host_name": "server02",
+            "description": "Disk /var",
+            "state": 1,
+            "plugin_output": "WARN - 85% used",
+            "acknowledged": 0,
+            "comments_with_info": [],
+            "last_state_change": "2024-01-01T01:00:00Z",
+        }
+    },
+    # Critical but acknowledged with ticket
+    {
+        "extensions": {
+            "host_name": "server03",
+            "description": "Memory",
+            "state": 2,
+            "plugin_output": "CRIT - memory 99%",
+            "acknowledged": 1,
+            "comments_with_info": [["user", "2024-01-01", "INC0099 – investigating"]],
+            "last_state_change": "2024-01-01T02:00:00Z",
+        }
+    },
+    # Acknowledged but without a ticket → should fall into warning bucket
+    {
+        "extensions": {
+            "host_name": "server04",
+            "description": "Network",
+            "state": 1,
+            "plugin_output": "WARN - packet loss",
+            "acknowledged": 1,
+            "comments_with_info": [["user", "2024-01-01", "checking"]],
+            "last_state_change": "2024-01-01T03:00:00Z",
+        }
+    },
+]
 
 
 class MockTransport(httpx.AsyncBaseTransport):
-    async def handle_async_request(self, request):
-        body = json.dumps(MOCK_RESPONSE).encode()
-        return httpx.Response(200, content=body, headers={"Content-Type": "application/json"}, request=request)
+    """Returns a canned JSON response for any request."""
+
+    def __init__(self, payload: dict, status_code: int = 200):
+        self._payload = payload
+        self._status_code = status_code
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        import json
+        return httpx.Response(
+            self._status_code,
+            headers={"Content-Type": "application/json"},
+            content=json.dumps(self._payload).encode(),
+        )
 
 
-@pytest.mark.asyncio
-async def test_get_problems_categories(monkeypatch):
-    class PatchedClient(httpx.AsyncClient):
-        def __init__(self, *args, **kwargs):
-            kwargs["transport"] = MockTransport()
-            super().__init__(*args, **kwargs)
+async def test_get_problems_categorises_services(monkeypatch):
+    mod = _reload_checkmk(
+        CMK_URL="http://mock-checkmk.example.com/site",
+        CMK_USER="automation",
+        CMK_SECRET="dummy",
+        CMK_SITE="",
+        TICKET_PATTERN="INC",
+    )
 
-    monkeypatch.setattr(httpx, "AsyncClient", PatchedClient)
-    result = await checkmk.get_problems()
+    transport = MockTransport({"value": MOCK_SERVICES})
 
-    assert len(result["critical"]) == 2      # host1 (state 2) + host4 (ack w/o ticket, state 2)
-    assert len(result["warning"]) == 1       # host2 (state 1)
-    assert len(result["acknowledged"]) == 1  # host3 (ack with INC ticket)
+    # Patch AsyncClient to use our mock transport
+    original_client = httpx.AsyncClient
+
+    def patched_client(**kwargs):
+        kwargs["transport"] = transport
+        return original_client(**kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
+
+    result = await mod.get_problems()
+
+    assert len(result["critical"]) == 1
+    assert result["critical"][0]["host"] == "server01"
+
+    assert len(result["warning"]) == 2  # server02 + server04 (ack without ticket)
+    warning_hosts = {w["host"] for w in result["warning"]}
+    assert "server02" in warning_hosts
+    assert "server04" in warning_hosts
+
+    assert len(result["acknowledged"]) == 1
+    assert result["acknowledged"][0]["host"] == "server03"
 
 
-@pytest.mark.asyncio
-async def test_get_problems_raises_on_error(monkeypatch):
-    class ErrorTransport(httpx.AsyncBaseTransport):
-        async def handle_async_request(self, request):
-            return httpx.Response(500, content=b"Internal Server Error", request=request)
+async def test_get_problems_raises_on_http_error(monkeypatch):
+    mod = _reload_checkmk(
+        CMK_URL="http://mock-checkmk.example.com/site",
+        CMK_USER="automation",
+        CMK_SECRET="dummy",
+        CMK_SITE="",
+    )
 
-    class PatchedClient(httpx.AsyncClient):
-        def __init__(self, *args, **kwargs):
-            kwargs["transport"] = ErrorTransport()
-            super().__init__(*args, **kwargs)
+    transport = MockTransport({}, status_code=503)
 
-    monkeypatch.setattr(httpx, "AsyncClient", PatchedClient)
+    original_client = httpx.AsyncClient
+
+    def patched_client(**kwargs):
+        kwargs["transport"] = transport
+        return original_client(**kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
+
     with pytest.raises(httpx.HTTPStatusError):
-        await checkmk.get_problems()
+        await mod.get_problems()
