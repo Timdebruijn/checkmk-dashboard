@@ -22,7 +22,12 @@ from checkmk import get_problems, validate_config
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_config()
-    async with httpx.AsyncClient(verify=False, timeout=10) as client:
+    # verify=False: SSL certificate verification is intentionally disabled.
+    # This dashboard targets internal Checkmk instances that commonly use
+    # self-signed certificates. Set CMK_TLS_VERIFY=true to enable verification
+    # or point to a CA bundle via CMK_CA_BUNDLE if your setup requires it.
+    tls_verify: bool | str = os.getenv("CMK_CA_BUNDLE") or (os.getenv("CMK_TLS_VERIFY", "").lower() == "true")
+    async with httpx.AsyncClient(verify=tls_verify, timeout=10) as client:
         app.state.http_client = client
         yield
 
