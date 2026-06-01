@@ -60,7 +60,7 @@ def test_config_defaults():
 # ---------------------------------------------------------------------------
 
 def test_problems_returns_structure(monkeypatch):
-    async def mock_get_problems():
+    async def mock_get_problems(client):
         return {"critical": [], "warning": [], "acknowledged": []}
 
     monkeypatch.setattr(main_module, "get_problems", mock_get_problems)
@@ -74,7 +74,7 @@ def test_problems_returns_structure(monkeypatch):
 
 
 def test_problems_500_on_exception(monkeypatch):
-    async def mock_get_problems():
+    async def mock_get_problems(client):
         raise RuntimeError("connection failed")
 
     monkeypatch.setattr(main_module, "get_problems", mock_get_problems)

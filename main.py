@@ -1,19 +1,38 @@
 import logging
 import os
 import secrets
+from contextlib import asynccontextmanager
 from typing import Optional
+
+from dotenv import load_dotenv
+load_dotenv()
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import httpx
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 
-from checkmk import get_problems
+from checkmk import get_problems, validate_config
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    validate_config()
+    # verify=False: SSL certificate verification is intentionally disabled.
+    # This dashboard targets internal Checkmk instances that commonly use
+    # self-signed certificates. Set CMK_TLS_VERIFY=true to enable verification
+    # or point to a CA bundle via CMK_CA_BUNDLE if your setup requires it.
+    tls_verify: bool | str = os.getenv("CMK_CA_BUNDLE") or (os.getenv("CMK_TLS_VERIFY", "").lower() == "true")
+    async with httpx.AsyncClient(verify=tls_verify, timeout=10) as client:
+        app.state.http_client = client
+        yield
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -64,7 +83,7 @@ async def config(_: None = Depends(_require_auth)):
 
 
 @app.get("/api/problems")
-async def problems(_: None = Depends(_require_auth)):
+async def problems(request: Request, _: None = Depends(_require_auth)):
     """
     Fetches non-OK services via the Checkmk REST API.
 
@@ -73,7 +92,7 @@ async def problems(_: None = Depends(_require_auth)):
     The app makes read-only GET requests to Checkmk only.
     """
     try:
-        data = await get_problems()
+        data = await get_problems(request.app.state.http_client)
         return data
     except Exception as e:
         logger.exception("Failed to fetch problems from Checkmk: %s", e)

@@ -24,6 +24,30 @@ def _reload_checkmk(**env_overrides):
 
 
 # ---------------------------------------------------------------------------
+# validate_config
+# ---------------------------------------------------------------------------
+
+class TestValidateConfig:
+    def test_raises_when_all_missing(self):
+        mod = _reload_checkmk(CMK_URL="", CMK_USER="", CMK_SECRET="")
+        with pytest.raises(RuntimeError, match="CMK_URL"):
+            mod.validate_config()
+
+    def test_raises_when_some_missing(self):
+        mod = _reload_checkmk(CMK_URL="https://checkmk.example.com", CMK_USER="", CMK_SECRET="")
+        with pytest.raises(RuntimeError, match="CMK_USER"):
+            mod.validate_config()
+
+    def test_no_raise_when_all_present(self):
+        mod = _reload_checkmk(
+            CMK_URL="https://checkmk.example.com",
+            CMK_USER="automation",
+            CMK_SECRET="secret",
+        )
+        mod.validate_config()  # should not raise
+
+
+# ---------------------------------------------------------------------------
 # _has_ticket
 # ---------------------------------------------------------------------------
 
@@ -128,17 +152,8 @@ async def test_get_problems_categorises_services(monkeypatch):
     )
 
     transport = MockTransport({"value": MOCK_SERVICES})
-
-    # Patch AsyncClient to use our mock transport
-    original_client = httpx.AsyncClient
-
-    def patched_client(**kwargs):
-        kwargs["transport"] = transport
-        return original_client(**kwargs)
-
-    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
-
-    result = await mod.get_problems()
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await mod.get_problems(client)
 
     assert len(result["critical"]) == 1
     assert result["critical"][0]["host"] == "server01"
@@ -161,14 +176,6 @@ async def test_get_problems_raises_on_http_error(monkeypatch):
     )
 
     transport = MockTransport({}, status_code=503)
-
-    original_client = httpx.AsyncClient
-
-    def patched_client(**kwargs):
-        kwargs["transport"] = transport
-        return original_client(**kwargs)
-
-    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
-
-    with pytest.raises(httpx.HTTPStatusError):
-        await mod.get_problems()
+    async with httpx.AsyncClient(transport=transport) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            await mod.get_problems(client)
