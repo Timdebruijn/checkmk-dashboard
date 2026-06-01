@@ -128,17 +128,9 @@ async def test_get_problems_categorises_services(monkeypatch):
     )
 
     transport = MockTransport({"value": MOCK_SERVICES})
+    client = httpx.AsyncClient(transport=transport)
 
-    # Patch AsyncClient to use our mock transport
-    original_client = httpx.AsyncClient
-
-    def patched_client(**kwargs):
-        kwargs["transport"] = transport
-        return original_client(**kwargs)
-
-    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
-
-    result = await mod.get_problems()
+    result = await mod.get_problems(client)
 
     assert len(result["critical"]) == 1
     assert result["critical"][0]["host"] == "server01"
@@ -161,14 +153,7 @@ async def test_get_problems_raises_on_http_error(monkeypatch):
     )
 
     transport = MockTransport({}, status_code=503)
-
-    original_client = httpx.AsyncClient
-
-    def patched_client(**kwargs):
-        kwargs["transport"] = transport
-        return original_client(**kwargs)
-
-    monkeypatch.setattr(httpx, "AsyncClient", patched_client)
+    client = httpx.AsyncClient(transport=transport)
 
     with pytest.raises(httpx.HTTPStatusError):
-        await mod.get_problems()
+        await mod.get_problems(client)
