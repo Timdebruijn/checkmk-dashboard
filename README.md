@@ -531,3 +531,33 @@ podman stop checkmk-dashboard && podman rm checkmk-dashboard
 # Rebuild and restart after a code change
 podman build -t checkmk-dashboard . && podman restart checkmk-dashboard
 ```
+
+---
+
+## Updating
+
+Pull the latest code and refresh dependencies — the exact steps depend on how you deployed.
+
+### Native install
+
+```bash
+cd /opt/checkmk-client-dashboard
+sudo -u checkmk-client-dashboard git pull
+sudo -u checkmk-client-dashboard venv/bin/pip install --upgrade -r requirements.txt
+sudo systemctl restart checkmk-client-dashboard
+```
+
+Offline server: regenerate the `packages/` directory on an internet-connected machine (see [Step 3b](#step-3b--offline-installation-no-internet-access)), transfer it, then run the same `pip install` with `--upgrade --no-index --find-links=packages`.
+
+### Container (Podman / Docker)
+
+```bash
+cd /path/to/checkmk-dashboard
+git pull
+podman build -t checkmk-dashboard .
+podman restart checkmk-dashboard   # Quadlet: sudo systemctl restart checkmk-dashboard
+```
+
+Air-gapped server: rebuild and `podman save` the image on an internet-connected machine, transfer it, then `podman load` and restart (see [Air-gapped deployment](#air-gapped-deployment-no-internet-on-target-server)).
+
+> Dependency versions are pinned in `requirements.txt`, so an update only changes what a commit actually bumped — `pip install --upgrade` will not pull in untested major versions on its own.
