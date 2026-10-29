@@ -48,14 +48,13 @@ _security = HTTPBasic(auto_error=False)
 def _require_auth(credentials: Optional[HTTPBasicCredentials] = Depends(_security)):
     if not _auth_enabled:
         return
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": 'Basic realm="Monitoring Dashboard"'},
-        )
-    ok_user = secrets.compare_digest(credentials.username.encode(), _AUTH_USER.encode())
-    ok_pass = secrets.compare_digest(credentials.password.encode(), _AUTH_PASSWORD.encode())
-    if not (ok_user and ok_pass):
+    # `&` (not `and`) so both comparisons always run — avoids leaking, via timing,
+    # whether the username alone matched.
+    ok = credentials is not None and (
+        secrets.compare_digest(credentials.username.encode(), _AUTH_USER.encode())
+        & secrets.compare_digest(credentials.password.encode(), _AUTH_PASSWORD.encode())
+    )
+    if not ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={"WWW-Authenticate": 'Basic realm="Monitoring Dashboard"'},
